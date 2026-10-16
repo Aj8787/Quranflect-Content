@@ -1,0 +1,100 @@
+name: Publish content
+on:
+  push:
+    branches: [main]
+    paths: ['uploads/**', 'publisher.json', 'cards/**', 'scripts/**', 'surah-counts.json', 'requirements.txt', '.github/workflows/publish.yml']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Validate Firebase notification without delivering it
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: content-pages
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      revision: ${{ steps.revision.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - run: python -m unittest discover -s tests
+      - name: Save previous live publication
+        run: |
+          mkdir -p previous
+          python3 - <<'PY'
+          import json,pathlib,urllib.request,urllib.error
+          try:
+              with urllib.request.urlopen('https://aj8787.github.io/Quranflect-Content/manifest.json',timeout=25) as response:
+                  data=json.load(response)
+          except urllib.error.HTTPError as error:
+              if error.code!=404:raise
+              data={'schemaVersion':1,'revision':'not-yet-published','cards':[]}
+          pathlib.Path('previous/manifest.json').write_text(json.dumps(data))
+          PY
+      - run: python scripts/publish.py --output site
+      - id: revision
+        run: python -c "import json,os;open(os.environ['GITHUB_OUTPUT'],'a').write('value='+json.load(open('site/manifest.json'))['revision']+'\n')"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - uses: actions/upload-artifact@v4
+        with:
+          name: content-manifests
+          path: |
+            site/manifest.json
+            previous/manifest.json
+          retention-days: 30
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
+  notify:
+    if: github.event_name != 'pull_request' && vars.FCM_ENABLED == 'true'
+    needs: [validate, deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: content-manifests
+          path: manifests
+      - name: Send only after successful Pages publication
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+        run: |
+          if [ "$DRY_RUN" = true ]; then
+            python scripts/notify.py --manifest manifests/site/manifest.json --previous manifests/previous/manifest.json --dry-run
+          else
+            python scripts/notify.py --manifest manifests/site/manifest.json --previous manifests/previous/manifest.json
+          fi

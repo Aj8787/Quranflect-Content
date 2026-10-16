@@ -1,0 +1,9 @@
+site/
+__pycache__/
+.venv/
+.env*
+*service-account*.json
+google-services.json
+*.jks
+*.keystore
+notification-state.json

@@ -1,0 +1,44 @@
+name: Weekly card notification
+on:
+  schedule:
+    - cron: '30 4 * * 5'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Validate only; do not send to subscribed users
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: content-pages
+  cancel-in-progress: false
+jobs:
+  weekly:
+    if: vars.FCM_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - name: Read published manifest
+        run: |
+          python3 - <<'PY'
+          import pathlib,urllib.request
+          with urllib.request.urlopen('https://aj8787.github.io/Quranflect-Content/manifest.json',timeout=25) as response:
+              pathlib.Path('published.json').write_bytes(response.read())
+          PY
+      - name: Notify weekly subscribers when new cards exist
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+        run: |
+          if [ "$DRY_RUN" = true ]; then
+            python scripts/notify.py --manifest published.json --frequency weekly --dry-run
+          else
+            python scripts/notify.py --manifest published.json --frequency weekly
+          fi

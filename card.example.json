@@ -1,0 +1,20 @@
+{
+  "id": "your-permanent-card-id",
+  "title": "A short description of your illustration",
+  "surah": 24,
+  "ayah": 30,
+  "image": "original.png",
+  "publishedAt": "2026-10-16T00:00:00Z",
+  "rights": {
+    "owner": "Artwork owner name",
+    "license": "Original artwork owned by the uploader; app distribution, download and sharing permitted",
+    "redistributionAllowed": true,
+    "attribution": "Credit, if required"
+  },
+  "maskColor": "#ffffff",
+  "referenceMasks": [{ "left": 0.81, "top": 0.91, "width": 0.19, "height": 0.07 }],
+  "previewMasks": [
+    { "left": 0, "top": 0.09, "width": 1, "height": 0.11 },
+    { "left": 0, "top": 0.80, "width": 1, "height": 0.11 }
+  ]
+}
