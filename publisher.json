@@ -1,8 +1,9 @@
+
 {
   "rights": {
-    "owner": "",
-    "license": "",
-    "redistributionAllowed": false
+    "owner": "Quranflect",
+    "license": "Free to use with attribution to Quranflect, including commercial use",
+    "redistributionAllowed": true
   },
   "maskColor": "#ffffff",
   "referenceMasks": [{"left":0.81,"top":0.91,"width":0.19,"height":0.07}],
