@@ -46,11 +46,14 @@ def main():
         raise SystemExit("Could not authenticate or connect to Firebase. Check the service-account key and retry.") from None
     if not response.ok:
         status = "UNKNOWN"
+        message = ""
         try:
-            status = response.json().get("error", {}).get("status", status)
+            error = response.json().get("error", {})
+            status = error.get("status", status)
+            message = error.get("message", "")
         except ValueError:
             pass
-        raise SystemExit(f"Firebase validation failed: HTTP {response.status_code}, {status}. Check FCM HTTP v1 enablement and Firebase Cloud Messaging API Admin permission.")
+        raise SystemExit(f"Firebase validation failed: HTTP {response.status_code}, {status}. {message}")
     print("PASS: Firebase credentials, project and FCM sending permission validated. No notification was delivered.")
 
 
