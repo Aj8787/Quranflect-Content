@@ -22,9 +22,11 @@ Use only artwork you own or are permitted to redistribute in this app. Prototype
 
 Repository visibility: **Public**. In **Settings → Pages → Build and deployment**, select **GitHub Actions**. Enable Actions. After the workflow finishes, the feed is `https://aj8787.github.io/Quranflect-Content/manifest.json`.
 
-For notifications, add the `FIREBASE_SERVICE_ACCOUNT` Actions secret containing the dedicated Firebase messaging service-account JSON, and a repository variable `FCM_ENABLED=true`. Keep this account restricted to sending FCM messages in your Firebase project. The Android repository separately needs `FIREBASE_ANDROID_CONFIG`.
+For notifications, add the `FIREBASE_SERVICE_ACCOUNT` Actions secret containing the dedicated Firebase messaging service-account JSON. Keep repository variable `FCM_ENABLED=false` during setup. The account needs **Firebase Cloud Messaging API Admin** (`roles/firebasecloudmessaging.admin`) on project `quranflect` in **Google Cloud → IAM**. The Android repository separately needs `FIREBASE_ANDROID_CONFIG` for package `io.github.aj8787.quranflect`.
 
-Normal publication sends to the `cards_often` topic only when new card IDs appear. The weekly workflow sends a digest to `cards_weekly`. Both are opt-in in the app. A workflow input provides a server-side dry run before enabling live delivery.
+In **Actions → Verify Firebase connection → Run workflow**, validate credentials and permission. This workflow always uses `validate_only: true`, independently of `FCM_ENABLED`, and never delivers a notification. After it passes, install the Firebase-configured APK from the private app repository’s **Releases** and opt in under **Settings → New card notifications → Often**. Then set `FCM_ENABLED=true` before uploading a new, properly licensed card to test real delivery.
+
+Normal publication sends to the `cards_often` topic only when new card IDs appear. The weekly workflow sends a digest to `cards_weekly`. Both are opt-in in the app. The separate **Verify Firebase connection** workflow is the setup check. **Publish content** also supports a dry-run input when manually invoked; it only considers card IDs not present in the previous live manifest, so rerunning an unchanged publication does not resend a notification.
 
 ## Validate locally
 
