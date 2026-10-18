@@ -3,7 +3,7 @@ import argparse,datetime,hashlib,json,pathlib,re,shutil,subprocess
 from PIL import Image
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
-ALLOWED={'id','title','surah','ayah','image','publishedAt','rights','maskColor','referenceMasks','previewMasks'}
+ALLOWED={'id','title','surah','ayah','image','publishedAt','rights','maskColor','referenceMasks','previewMasks','appMasks'}
 def validate_metadata(data,folder,counts):
     assert isinstance(data,dict) and set(data)<=ALLOWED,'Unknown metadata fields; topics/categories are not supported'
     card_id=data['id'];assert isinstance(card_id,str) and re.fullmatch(r'[a-z0-9][a-z0-9-]{0,79}',card_id) and card_id==folder.name,'ID must match folder'
@@ -13,7 +13,7 @@ def validate_metadata(data,folder,counts):
     published=datetime.datetime.fromisoformat(data['publishedAt'].replace('Z','+00:00'));assert published.tzinfo is not None,'Publication date needs a timezone'
     rights=data['rights'];assert rights.get('redistributionAllowed') is True and rights.get('owner') and rights.get('license'),'Explicit artwork redistribution rights are required'
     assert re.fullmatch(r'#[a-fA-F0-9]{6}',data.get('maskColor','#ffffff'))
-    for key in ('referenceMasks','previewMasks'):
+    for key in ('referenceMasks','previewMasks','appMasks'):
         masks=data.get(key,[]);assert isinstance(masks,list) and len(masks)<=8
         for m in masks:
             assert set(m)=={'left','top','width','height'}
@@ -35,7 +35,7 @@ def image_uploads(root):
         if not date:date=datetime.datetime.fromtimestamp(source.stat().st_mtime,datetime.timezone.utc).isoformat()
         s,a=int(match[1]),int(match[2]);card_id=source.stem
         data={'id':card_id,'title':f'Qur’an {s}:{a}','surah':s,'ayah':a,'image':source.name,'publishedAt':date,'rights':rights}
-        for key in ('maskColor','referenceMasks','previewMasks'):
+        for key in ('maskColor','referenceMasks','previewMasks','appMasks'):
             if key in settings:data[key]=settings[key]
         result.append((data,root/'cards'/card_id,source))
     return result
@@ -72,9 +72,11 @@ def build(root,output):
     manifest={'schemaVersion':1,'revision':hashlib.sha256(canonical).hexdigest(),'cards':cards}
     (output/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     (output/'.nojekyll').write_text('')
+    if (root/'public').is_dir():shutil.copytree(root/'public',output,dirs_exist_ok=True)
     (output/'index.html').write_text('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Quranflect content</title><body><h1>Quranflect</h1><p>Swipe, Read, Reflect</p><p>Public card feed for the Quranflect Android app.</p><a href="manifest.json">Content manifest</a></body></html>')
     print(f'Validated {len(cards)} cards. Revision {manifest["revision"]}')
     return manifest
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--output',type=pathlib.Path,default=ROOT/'site');a=p.parse_args();build(ROOT,a.output)
+
