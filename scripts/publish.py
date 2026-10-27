@@ -3,9 +3,10 @@ import argparse,datetime,hashlib,json,pathlib,re,shutil,subprocess
 from PIL import Image
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
-ALLOWED={'id','title','surah','ayah','image','publishedAt','rights','maskColor','referenceMasks','previewMasks','appMasks'}
+ALLOWED={'id','title','surah','ayah','image','publishedAt','rights','maskColor','referenceMasks','previewMasks','appMasks','order'}
 def validate_metadata(data,folder,counts):
     assert isinstance(data,dict) and set(data)<=ALLOWED,'Unknown metadata fields; topics/categories are not supported'
+    if 'order' in data:assert type(data['order']) is int and 1<=data['order']<=2_147_483_647,'Order must be a positive whole number'
     card_id=data['id'];assert isinstance(card_id,str) and re.fullmatch(r'[a-z0-9][a-z0-9-]{0,79}',card_id) and card_id==folder.name,'ID must match folder'
     assert isinstance(data['title'],str) and 1<=len(data['title'].strip())<=200
     s,a=data['surah'],data['ayah'];assert type(s)==int and type(a)==int and 1<=s<=114 and 1<=a<=counts[s-1],'Invalid Qur’an reference'
@@ -40,7 +41,28 @@ def image_uploads(root):
         result.append((data,root/'cards'/card_id,source))
     return result
 
-def build(root,output):
+def assign_order(cards,overrides,previous):
+    assert isinstance(overrides,dict),'order.json must contain a card-ID to number object'
+    ids={c['id'] for c in cards}
+    assert set(overrides)<=ids,'order.json contains an unknown card ID'
+    for value in overrides.values():
+        assert type(value) is int and 1<=value<=2_147_483_647,'Order must be a positive whole number'
+    prior={c['id']:c for c in previous.get('cards',[])}
+    used={}
+    for card in cards:
+        number=overrides.get(card['id'],card.get('order',prior.get(card['id'],{}).get('order')))
+        if number is not None:
+            assert type(number) is int and 1<=number<=2_147_483_647,'Invalid previous or explicit order'
+            assert number not in used,f'Duplicate order number {number}; use a unique number per card'
+            used[number]=card['id'];card['order']=number
+    next_number=max(used,default=0)
+    for card in sorted(cards,key=lambda c:(c['publishedAt'],c['id'])):
+        if 'order' not in card:
+            next_number+=1;assert next_number<=2_147_483_647
+            card['order']=next_number
+    cards.sort(key=lambda c:(c['order'],c['publishedAt'],c['id']))
+
+def build(root,output,previous=None):
     counts=json.loads((root/'surah-counts.json').read_text());assert len(counts)==114
     output.mkdir(parents=True,exist_ok=True);cards=[]
     records=[]
@@ -67,7 +89,8 @@ def build(root,output):
     declared={source.resolve() for _,_,source in records}
     for image in (root/'cards').rglob('*'):
         if image.is_file() and image.suffix.lower() in ('.png','.jpg','.jpeg','.webp'):assert image.resolve() in declared,'An image has no paired card.json'
-    cards.sort(key=lambda c:(c['publishedAt'],c['id']))
+    orderfile=root/'order.json'
+    assign_order(cards,json.loads(orderfile.read_text()) if orderfile.exists() else {},previous or {})
     canonical=json.dumps(cards,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
     manifest={'schemaVersion':1,'revision':hashlib.sha256(canonical).hexdigest(),'cards':cards}
     (output/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
@@ -78,5 +101,6 @@ def build(root,output):
     return manifest
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--output',type=pathlib.Path,default=ROOT/'site');a=p.parse_args();build(ROOT,a.output)
+    p=argparse.ArgumentParser();p.add_argument('--output',type=pathlib.Path,default=ROOT/'site');p.add_argument('--previous',type=pathlib.Path);a=p.parse_args();build(ROOT,a.output,json.loads(a.previous.read_text()) if a.previous else {})
+
 

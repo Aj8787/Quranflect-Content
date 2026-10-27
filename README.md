@@ -37,3 +37,10 @@ Normal publication sends to the `cards_often` topic only when new card IDs appea
 `python3 -m unittest discover -s tests`
 
 Application code, images and Qur’an data have separate rights. Being in this public repository is not a blanket open-source or artwork license. Each card must specify its own rights and attribution.
+
+
+## Choose oldest/newest order
+
+Edit `order.json` to assign a unique positive whole number to a card ID (the image filename without its extension). Smaller numbers are older; larger numbers are newer. For example, `"24-30-001": 20` places that card after number 10, even when both images were uploaded in one commit. Change both numbers together when swapping positions.
+
+Uploading only an image still works: new IDs receive the next number automatically, and the previous published manifest retains assigned numbers across later uploads. Add a new card to `order.json` only when you want to override its order. Remove its entry if you delete that card. Reordering does not send a new-card notification. Originals and their download/share credits remain unchanged.

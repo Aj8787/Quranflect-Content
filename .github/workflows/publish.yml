@@ -2,7 +2,7 @@ name: Publish content
 on:
   push:
     branches: [main]
-    paths: ['uploads/**', 'publisher.json', 'cards/**', 'public/**', 'scripts/**', 'surah-counts.json', 'requirements.txt', '.github/workflows/publish.yml']
+    paths: ['uploads/**', 'publisher.json', 'order.json', 'cards/**', 'public/**', 'scripts/**', 'surah-counts.json', 'requirements.txt', '.github/workflows/publish.yml']
   pull_request:
   workflow_dispatch:
     inputs:
@@ -44,7 +44,7 @@ jobs:
               data={'schemaVersion':1,'revision':'not-yet-published','cards':[]}
           pathlib.Path('previous/manifest.json').write_text(json.dumps(data))
           PY
-      - run: python scripts/publish.py --output site
+      - run: python scripts/publish.py --output site --previous previous/manifest.json
       - id: revision
         run: python -c "import json,os;open(os.environ['GITHUB_OUTPUT'],'a').write('value='+json.load(open('site/manifest.json'))['revision']+'\n')"
       - uses: actions/upload-pages-artifact@v3
@@ -98,4 +98,5 @@ jobs:
           else
             python scripts/notify.py --manifest manifests/site/manifest.json --previous manifests/previous/manifest.json
           fi
+
 
