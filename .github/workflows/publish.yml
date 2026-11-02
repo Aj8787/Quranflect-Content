@@ -93,6 +93,8 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
         run: |
+          # Validate real messaging credentials even when this publication has no new cards.
+          python scripts/notify.py --manifest manifests/site/manifest.json --dry-run
           if [ "$DRY_RUN" = true ]; then
             python scripts/notify.py --manifest manifests/site/manifest.json --previous manifests/previous/manifest.json --dry-run
           else
