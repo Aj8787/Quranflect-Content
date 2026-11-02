@@ -71,7 +71,7 @@ jobs:
       - uses: actions/deploy-pages@v4
         id: deployment
   notify:
-    if: github.event_name != 'pull_request' && vars.FCM_ENABLED == 'true'
+    if: github.event_name != 'pull_request'
     needs: [validate, deploy]
     runs-on: ubuntu-latest
     timeout-minutes: 5
